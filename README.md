@@ -27,6 +27,7 @@ Serão montados 2 clusters utilizando docker swarm:
 OBS: Caso tenha interesse de ter uma visão geral do seu cluster de modo gráfico, ir ao final dessa documentação e fazer o deploy do visualizer, após o deploy acesso via navegador responderá pelo ip do cluster na porta 8080.
 
 ----------------------------Criando o primeiro cluster(Elasticsearch)---------------------------
+
 1-Identificar as duas máquinas do primeiro cluster(no meu caso foram as máquinas de IP final 10 e 11)
 
 2-Acessar a primeira máquina e inicializar o cluster com o comando "docker swarm init --advertise-addr 172.27.11.10" e a adicionar a segunda máquina ao cluster.
