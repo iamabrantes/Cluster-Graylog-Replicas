@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+
+  traefik:
+    image: "traefik:v2.6.1"
+    environment :
+      TZ : America/Sao_Paulo
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.dashboard=true"
+      - "--accesslog.fields.names.StartUTC=drop"
+      - "--accesslog.fields.headers.names.User-Agent=keep"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+        #- "--providers.file.directory=/etc/traefik/dynamic_conf"
+      - "--entrypoints.web.address=:80"
+      - "--entryPoints.web.forwardedHeaders.trustedIPs=10.0.0.0/8,72.27.0.0/12,192.168.0.0/16"
+      - "--entrypoints.elastic1.address=:9200"
+      - "--entryPoints.elastic1.forwardedHeaders.trustedIPs=10.0.0.0/8,72.27.0.0/12,192.168.0.0/16"
+      - "--entrypoints.websecure.address=:443"
+      - "--entryPoints.websecure.forwardedHeaders.trustedIPs=10.0.0.0/8,72.27.0.0/12,192.168.0.0/16"
+    deploy:
+      mode: global
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.traefik.rule=Host(`172.27.11.12`)"
+        - "traefik.http.routers.traefik.service=api@internal"
+        - "traefik.http.services.traefik.loadbalancer.server.port=80"
+        #- "traefik.http.routers.traefik.entrypoints=web"
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://0.0.0.0:12201"
+        tag: "traefik"
+    networks:
+        - elk
+    ports:
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host      
+      - target: 9200
+        published: 9200
+        mode: host      
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+networks:
+  elk:
+    external: true 

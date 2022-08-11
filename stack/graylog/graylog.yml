@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+
+  mongo01:
+    image: "mongo:5.0"
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs0"]
+    volumes:
+      - "mongo01:/data/db"
+      - "./mongodb/initdb.d:/docker-entrypoint-initdb.d"
+      - "./mongodb/init-replset.js:/init-replset.js"
+    networks:
+      - graylog
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == graylog1
+
+  mongo02:
+    image: "mongo:5.0"
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs0"]
+    volumes:
+      - "mongo02:/data/db"
+    depends_on:
+      - mongo01
+    networks:
+      - graylog
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == graylog2
+
+  mongo03:
+    image: "mongo:5.0"
+    command: ["mongod", "--bind_ip_all", "--replSet", "rs0"]
+    volumes:
+      - "mongo03:/data/db"
+    depends_on:
+      - mongo01
+    networks:
+      - graylog
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == graylog3
+
+  graylog1:
+    image: graylog/graylog:4.3.3
+    healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:9000/api"]
+       timeout: 5s
+    env_file:
+      - .env
+    environment:
+      - GRAYLOG_IS_MASTER=true
+      - TZ=America/Sao_Paulo
+      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+      #- GRAYLOG_HTTP_EXTERNAL_URI=http://172.27.11.10:9000/
+      - GRAYLOG_HTTP_PUBLISH_URI=http://graylog1:9000
+    depends_on:
+     - mongo01
+    networks:
+      - graylog
+    ports:
+      - "9000:9000"
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == graylog1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=elk"
+        # Bloco para criação da porta 1514 TCP
+        - "traefik.tcp.routers.graylog1.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.graylog1.entrypoints=graylog1"
+        - "traefik.tcp.services.graylog1.loadbalancer.server.port=1514"
+        - "traefik.tcp.routers.graylog1.service=graylog1"
+        # Bloco para criação da porta 12201 TCP
+        - "traefik.tcp.routers.graylog2.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.graylog2.entrypoints=graylog2"
+        - "traefik.tcp.services.graylog2.loadbalancer.server.port=12201"
+        - "traefik.tcp.routers.graylog2.service=graylog2"
+        # Bloco para criação da porta 1514 UDP
+        - "traefik.udp.routers.graylog3.entrypoints=graylog3"
+        - "traefik.udp.services.graylog3.loadbalancer.server.port=1514"
+        - "traefik.udp.routers.graylog3.service=graylog3"
+        # Bloco para criação da porta 12201 UDP
+        - "traefik.udp.routers.graylog4.entrypoints=graylog4"
+        - "traefik.udp.services.graylog4.loadbalancer.server.port=12201"
+        - "traefik.udp.routers.graylog4.service=graylog4"
+        # Bloco para criação da porta 9000 HTTP
+        - "traefik.http.routers.graylog5.rule=Host(`172.27.11.10`)"
+        - "traefik.http.routers.graylog5.service=graylog5"
+        - "traefik.http.services.graylog5.loadbalancer.server.port=9000"
+
+  graylog2:
+    image: graylog/graylog:4.3.3
+    healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:9000/api"]
+       timeout: 5s
+    env_file:
+      - .env
+    environment:
+      - GRAYLOG_IS_MASTER=false
+      - TZ=America/Sao_Paulo
+      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+      - GRAYLOG_HTTP_PUBLISH_URI=http://graylog2:9000
+    depends_on:
+     - mongo01
+     - graylog1
+    networks:
+      - graylog
+    ports:
+      - "9001:9000"
+    deploy:
+      replicas: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=elk"
+        # Bloco para criação da porta 1514 TCP
+        - "traefik.tcp.routers.graylog1.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.graylog1.entrypoints=graylog1"
+        - "traefik.tcp.services.graylog1.loadbalancer.server.port=1514"
+        - "traefik.tcp.routers.graylog1.service=graylog1"
+        # Bloco para criação da porta 12201 TCP
+        - "traefik.tcp.routers.graylog2.rule=HostSNI(`*`)"
+        - "traefik.tcp.routers.graylog2.entrypoints=graylog2"
+        - "traefik.tcp.services.graylog2.loadbalancer.server.port=12201"
+        - "traefik.tcp.routers.graylog2.service=graylog2"
+        # Bloco para criação da porta 1514 UDP
+        - "traefik.udp.routers.graylog3.entrypoints=graylog3"
+        - "traefik.udp.services.graylog3.loadbalancer.server.port=1514"
+        - "traefik.udp.routers.graylog3.service=graylog3"
+        # Bloco para criação da porta 12201 UDP
+        - "traefik.udp.routers.graylog4.entrypoints=graylog4"
+        - "traefik.udp.services.graylog4.loadbalancer.server.port=12201"
+        - "traefik.udp.routers.graylog4.service=graylog4"
+
+volumes:
+  mongo01:
+  mongo02:
+  mongo03:
+networks:
+  graylog:
+    external: true
