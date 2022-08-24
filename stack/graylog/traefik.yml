@@ -33,7 +33,7 @@ services:
       mode: global
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.traefik.rule=Host(`172.27.11.10`)"
+        - "traefik.http.routers.traefik.rule=Host(`172.27.11.12`)"
         - "traefik.http.routers.traefik.service=api@internal"
         - "traefik.http.services.traefik.loadbalancer.server.port=80"
         #- "traefik.http.routers.traefik.entrypoints=web"
